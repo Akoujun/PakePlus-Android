@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>情侣运动金币</title>
+<link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+<canvas id="celebrationCanvas" aria-hidden="true"></canvas>
+<main class="app-shell">
+<section class="hero-card">
+<div class="hero-copy">
+<p class="eyebrow">Couple Fitness Tracker</p>
+<h1>情侣运动金币</h1>
+<p class="subtitle">把本周新赚金币、可消费额度和家庭储备池分开看，记录和结转都更清楚。</p>
+</div>
+<div class="goal-pill">
+<span>本周新赚金币目标</span>
+<strong id="goalSummary">0 / 0 金币</strong>
+<small id="goalStatus">继续加油，离目标更近一点。</small>
+</div>
+</section>
+<section class="tabs-shell">
+<div class="tabs-header">
+<div class="tabs-nav" id="tabsNav">
+<button type="button" class="tab-btn active" data-tab="overview">总览</button>
+<button type="button" class="tab-btn" data-tab="exercise">运动记录</button>
+<button type="button" class="tab-btn" data-tab="checkin">本周打卡</button>
+<button type="button" class="tab-btn" data-tab="budget">金币预算</button>
+<button type="button" class="tab-btn" data-tab="overdraft">透支管理</button>
+<button type="button" class="tab-btn" data-tab="history">本周明细</button>
+</div>
+<p class="tab-hint">点击标签切换分页内容</p>
+</div>
+<section class="tab-panel active" data-panel="overview">
+<section class="stats-grid">
+<article class="stat-card highlight-card"><span>本周可消费余额</span><strong id="weeklyPoolBalance">0</strong><small id="weeklyPoolExpenseMeta">来自上周结转，可被本周花销使用</small></article>
+<article class="stat-card highlight-card reserve-card"><span>家庭储备池余额</span><strong id="familyPoolBalance">0</strong><small id="familyPoolExpenseMeta">来自每周未花完的可用额度</small></article>
+<article class="stat-card highlight-card debt-card hidden"><span>当前透支余额</span><strong id="overdraftBalance">0</strong><small id="overdraftMeta">周结余会优先自动抵扣</small></article>
+<article class="stat-card"><span>本周新赚金币</span><strong id="thisWeekCoins">0</strong></article>
+<article class="stat-card"><span>上周新赚金币</span><strong id="lastWeekCoins">0</strong></article>
+<article class="stat-card"><span>本周运动时长</span><strong id="thisWeekMinutes">0 分钟</strong></article>
+<article class="stat-card"><span>本周初始可用金</span><strong id="lastCarryover">0</strong></article>
+<article class="stat-card highlight-card"><span>上周开销剩余</span><strong id="lastWeekRemainder">0</strong><small id="lastWeekRemainderMeta">上周积攒 - 上周花销</small></article>
+</section>
+<section class="panel budget-panel">
+<div class="panel-title">
+<h2>花销记录说明</h2>
+<p>这里记录的是两个池子的已花销金额，不是可用额度上限；新输入会覆盖旧金额，备注也会同步更新。</p>
+</div>
+<div class="budget-notes">
+<article class="budget-note-card"><span>本周可消费池已花销</span><strong id="weeklyBudgetAmount">0 金币</strong><p id="weeklyBudgetNote">还没有记录本周可消费池花销。</p></article>
+<article class="budget-note-card"><span>家庭储备池已花销</span><strong id="familyBudgetAmount">0 金币</strong><p id="familyBudgetNote">还没有记录家庭储备池花销。</p></article>
+</div>
+</section>
+</section>
+<section class="tab-panel" data-panel="exercise">
+<section class="panel">
+<div class="panel-title">
+<h2>添加运动记录</h2>
+<p>从你维护好的运动类型里选择项目，金币会按当前系数乘时长后四舍五入成整数。</p>
+</div>
+<form id="exerciseForm" class="form-grid">
+<label><span>记录人</span><select name="person" required><option value="me">嘟嘟</option><option value="partner">皮屁</option></select></label>
+<label><span>运动类型</span><select id="exerciseTypeSelect" name="type" required></select></label>
+<label><span>时长（分钟）</span><input type="number" name="minutes" min="1" step="1" inputmode="numeric" placeholder="30" required></label>
+<label><span>日期</span><input type="date" name="date" required></label>
+<label class="full-width"><span>备注</span><input type="text" name="note" maxlength="40" placeholder="例如：晚饭后散步"></label>
+<p class="field-hint full-width">如果删掉了某个运动类型，旧记录仍会保留当时的名称和系数，不会影响历史数据。</p>
+<button type="submit" class="primary-btn full-width">保存运动记录</button>
+</form>
+</section>
+<section class="panel">
+<div class="panel-title">
+<h2>运动类型管理</h2>
+<p>在这里统一新增、编辑、删除日常运动种类，系统自带项目也可以改系数或移除。</p>
+</div>
+<div class="type-manager-shell">
+<section class="type-manager-card">
+<div class="type-card-title">
+<div>
+<h3 id="typeFormTitle">新增运动类型</h3>
+<p class="section-note" id="typeFormHint">添加一个常用运动项目，保存后会立即出现在记录表单里。</p>
+</div>
+<button type="button" class="mini-btn ghost hidden" id="cancelTypeEditBtn">取消编辑</button>
+</div>
+<form id="typeManagerForm" class="type-form-grid">
+<input type="hidden" name="typeId">
+<label><span>运动名称</span><input type="text" name="name" maxlength="20" placeholder="例如：跳绳" required></label>
+<label><span>金币系数</span><input type="number" name="coinsPerMinute" min="0.1" step="0.1" inputmode="decimal" placeholder="例如：2.3" required></label>
+<button type="submit" class="primary-btn">保存运动类型</button>
+<button type="button" class="ghost-btn" id="resetTypeFormBtn">清空表单</button>
+</form>
+</section>
+<section class="type-manager-card">
+<div class="type-card-title">
+<div>
+<h3>当前运动类型</h3>
+<p class="section-note">系统和自定义项目已经合并成一份可管理列表。</p>
+</div>
+</div>
+<div id="typeList" class="type-list"></div>
+</section>
+</div>
+</section>
+<section class="panel">
+<div class="panel-title">
+<h2>目标与数据工具</h2>
+<p>支持每周新赚金币目标、自动轮转、历史清理和跨手机迁移。</p>
+</div>
+<div class="form-grid">
+<label><span>每周新赚金币目标</span><input id="weeklyGoalInput" type="number" min="0" step="10" inputmode="numeric" placeholder="300"></label>
+<button id="saveGoalBtn" type="button" class="primary-btn">保存目标</button>
+<button id="exportBtn" type="button" class="secondary-btn">导出数据</button>
+<button id="importBtn" type="button" class="secondary-btn">导入数据</button>
+<button id="cleanupBtn" type="button" class="ghost-btn full-width">清除上一年记录</button>
+<input id="importFileInput" type="file" accept="application/json,.json" hidden>
+</div>
+</section>
+</section>
+<section class="tab-panel" data-panel="checkin">
+<section class="panel">
+<div class="panel-title">
+<h2>新增本周打卡项</h2>
+<p>设定名称、目标次数和奖励金币。达标后会自动把奖励计入本周新赚金币。</p>
+</div>
+<form id="checkinForm" class="form-grid">
+<label><span>打卡名称</span><input type="text" name="name" maxlength="30" placeholder="例如：早起晨跑" required></label>
+<label><span>目标次数</span><input type="number" name="targetCount" min="1" step="1" inputmode="numeric" placeholder="例如：2" required></label>
+<label><span>奖励金币</span><input type="number" name="rewardCoins" min="1" step="1" inputmode="numeric" placeholder="例如：60" required></label>
+<label><span>打卡方式</span><select name="scheduleMode" required><option value="once">仅本周</option><option value="recurring">固定打卡项（每周自动刷新）</option></select></label>
+<p class="field-hint full-width">固定打卡项会在每周一自动生成新的本周卡片；中止后将停止自动生成，并移除当前周这张固定卡片。</p>
+<button type="submit" class="primary-btn">保存打卡项</button>
+</form>
+</section>
+<section class="panel">
+<div class="panel-title">
+<h2>本周打卡进度</h2>
+<p id="checkinSummary">还没有本周打卡项，先新增一个吧。</p>
+</div>
+<div id="checkinList" class="records-list"></div>
+</section>
+</section>
+<section class="tab-panel" data-panel="budget">
+<section class="panel">
+<div class="panel-title">
+<h2>记录金币池花销</h2>
+<p>这里只记录实际已花销金额。周可消费池和家庭储备池分别登记，互不混用。</p>
+</div>
+<form id="expenseForm" class="form-grid">
+<label><span>金币池</span><select name="pool" required><option value="weekly">本周可消费池</option><option value="family">家庭储备池</option></select></label>
+<label><span>花销金额</span><input type="number" name="amount" min="0" step="1" inputmode="numeric" placeholder="0" required></label>
+<label class="full-width"><span>备注</span><input type="text" name="note" maxlength="60" placeholder="例如：本周可消费池买了瑜伽垫"></label>
+<button type="submit" class="secondary-btn full-width">更新花销记录</button>
+</form>
+</section>
+<section class="panel">
+<div class="panel-title">
+<h2>记录透支型支出</h2>
+<p>适用于旅行定金、家电等大额计划开销。它不会占用本周生活额度，会在周结束后由结余自动慢慢抵扣。</p>
+</div>
+<form id="overdraftForm" class="form-grid">
+<label><span>支出日期</span><input type="date" name="date" required></label>
+<label><span>透支金额</span><input type="number" name="amount" min="1" step="1" inputmode="numeric" placeholder="8000" required></label>
+<label><span>已抵扣金额</span><input type="number" name="repaidAmount" min="0" step="1" inputmode="numeric" placeholder="0" required></label>
+<label><span>名称</span><input type="text" name="title" maxlength="30" placeholder="例如：新疆旅行团定金" required></label>
+<label class="full-width"><span>备注</span><input type="text" name="note" maxlength="60" placeholder="例如：五月新疆旅行"></label>
+<button type="submit" class="secondary-btn full-width">保存透支支出</button>
+</form>
+<div class="inline-helper-card">
+<div class="panel-title compact-title">
+<h3>手工补记抵扣</h3>
+<p>当你已经在线下确认了本周可用于抵扣透支的余额，可以在这里手工补记，让当前透支余额立即减少。</p>
+</div>
+<form id="overdraftAdjustmentForm" class="form-grid">
+<label><span>抵扣金额</span><input type="number" name="amount" min="1" step="1" inputmode="numeric" placeholder="例如：410" required></label>
+<label><span>备注</span><input type="text" name="note" maxlength="60" placeholder="例如：补记上周结余"></label>
+<button type="submit" class="secondary-btn full-width">保存补记抵扣</button>
+</form>
+</div>
+</section>
+<section class="panel">
+<div class="panel-title">
+<h2>V3.1 数据修正</h2>
+<p>用于版本升级前接管当前账面状态。这里修改的是源数据，保存后会自动重算本周可消费余额和储备池余额。</p>
+</div>
+<form id="lastWeekCoinsForm" class="form-grid">
+<label><span>上周新赚金币</span><input type="number" name="manualTotalCoins" min="0" step="1" inputmode="numeric" placeholder="例如：1085" required></label>
+<label><span>修正备注</span><input type="text" name="note" maxlength="60" placeholder="例如：旧版本迁移修正"></label>
+<button type="submit" class="secondary-btn full-width">保存上周金币修正</button>
+</form>
+<form id="familyBaseForm" class="form-grid">
+<label><span>家庭储备池当前余额</span><input type="number" name="manualBaseBalance" min="0" step="1" inputmode="numeric" placeholder="例如：500" required></label>
+<label><span>修正备注</span><input type="text" name="note" maxlength="60" placeholder="例如：手工接管当前余额"></label>
+<button type="submit" class="secondary-btn full-width">保存家庭储备池修正</button>
+</form>
+</section>
+</section>
+<section class="tab-panel" data-panel="overdraft">
+<section class="panel">
+<div class="panel-title">
+<h2>透支管理</h2>
+<p>管理透支款项，记录还款进度。每笔透支项独立管理，支持手动输入冲还金额。</p>
+</div>
+<article class="stat-card highlight-card debt-card" style="margin-bottom:16px"><span>总透支剩余</span><strong id="totalOverdraftRemainder">0</strong><small>所有未还清透支项的剩余总额</small></article>
+<form id="manualOverdraftForm" class="form-grid">
+<label><span>透支项目名</span><input type="text" name="name" maxlength="30" placeholder="例如：新疆旅行定金" required></label>
+<label><span>开始时间</span><input type="date" name="startDate" required></label>
+<label><span>初始金额</span><input type="number" name="initialAmount" min="1" step="1" inputmode="numeric" placeholder="8000" required></label>
+<label><span>已还金额</span><input type="number" name="repaidAmount" min="0" step="1" inputmode="numeric" placeholder="0"></label>
+<button type="submit" class="primary-btn full-width">新增透支项</button>
+</form>
+</section>
+<section class="panel">
+<div class="panel-title">
+<h2>透支项列表</h2>
+<p id="manualOverdraftSummary">还没有透支项，新增一笔开始记录吧。</p>
+</div>
+<div id="manualOverdraftList" class="records-list"></div>
+</section>
+</section>
+<section class="tab-panel" data-panel="history">
+<section class="panel">
+<div class="panel-title">
+<h2>本周运动明细</h2>
+<p id="historySummary">正在统计本周可用额度、本周新赚金币和家庭储备池转入情况。</p>
+</div>
+<div id="recordsList" class="records-list"></div>
+</section>
+<section class="panel">
+<div class="panel-title">
+<h2>透支记录</h2>
+<p id="overdraftSummary">还没有透支型支出。</p>
+</div>
+<div id="overdraftList" class="records-list"></div>
+</section>
+<section class="panel">
+<div class="panel-title">
+<h2>自动抵扣记录</h2>
+<p id="repaymentSummary">还没有自动抵扣记录。</p>
+</div>
+<div id="repaymentList" class="records-list"></div>
+</section>
+</section>
+</section>
+</main>
+<template id="recordTemplate">
+<article class="record-item">
+<div class="record-main">
+<strong class="record-person"></strong>
+<p class="record-meta"></p>
+<p class="record-note"></p>
+</div>
+<div class="record-actions">
+<div class="record-coins"></div>
+<button type="button" class="sync-btn">同步给对方</button>
+<button type="button" class="record-delete-btn" aria-label="删除运动记录" title="删除运动记录">删除</button>
+</div>
+</article>
+</template>
+<template id="overdraftItemTemplate">
+<article class="record-item debt-item">
+<div class="record-main">
+<strong class="record-person"></strong>
+<p class="record-meta"></p>
+<p class="record-note"></p>
+</div>
+<div class="record-actions">
+<div class="record-coins"></div>
+</div>
+</article>
+</template>
+<template id="checkinItemTemplate">
+<article class="record-item checkin-item">
+<div class="record-main">
+<strong class="record-person"></strong>
+<p class="record-meta"></p>
+<p class="record-note"></p>
+</div>
+<div class="record-actions checkin-actions">
+<div class="record-coins"></div>
+<button type="button" class="mini-btn secondary checkin-plus-btn">+1 次</button>
+<button type="button" class="mini-btn ghost checkin-minus-btn">-1 次</button>
+<button type="button" class="mini-btn danger checkin-stop-btn hidden">中止固定</button>
+<button type="button" class="record-delete-btn checkin-delete-btn" aria-label="删除打卡项" title="删除打卡项">删除</button>
+</div>
+</article>
+</template>
+<template id="typeItemTemplate">
+<article class="type-item">
+<div class="type-head">
+<div class="type-name-row">
+<strong class="type-name"></strong>
+<span class="type-meta"></span>
+</div>
+<span class="type-badge"></span>
+</div>
+<div class="type-rate"></div>
+<div class="type-actions">
+<button type="button" class="mini-btn secondary type-edit-btn">编辑</button>
+<button type="button" class="mini-btn danger type-delete-btn">删除</button>
+</div>
+</article>
+</template>
+<template id="manualOverdraftItemTemplate">
+<article class="manual-overdraft-item">
+<div class="manual-overdraft-header">
+<strong class="manual-overdraft-name"></strong>
+<span class="manual-overdraft-status"></span>
+</div>
+<div class="manual-overdraft-meta"></div>
+<div class="progress-bar"><div class="progress-fill"></div></div>
+<div class="manual-overdraft-footer">
+<span class="manual-overdraft-progress-text"></span>
+<button type="button" class="mini-btn secondary manual-repay-btn">还款</button>
+</div>
+</article>
+</template>
+<div id="repaymentModal" class="modal hidden">
+<div class="modal-content">
+<div class="modal-header">
+<h3 id="repaymentModalTitle">还款</h3>
+<button type="button" class="modal-close-btn" aria-label="关闭">&times;</button>
+</div>
+<div class="modal-body">
+<p class="modal-remainder-info">剩余欠款：<strong id="modalRemainderAmount">0</strong> 金币</p>
+<form id="repaymentModalForm">
+<input type="hidden" name="itemId">
+<label><span>冲还金额</span><input type="number" name="amount" min="1" step="1" inputmode="numeric" placeholder="输入金额" required></label>
+<label><span>备注</span><input type="text" name="note" maxlength="60" placeholder="可选"></label>
+</form>
+</div>
+<div class="modal-footer">
+<button type="button" class="ghost-btn modal-cancel-btn">取消</button>
+<button type="button" class="primary-btn modal-confirm-btn">确认还款</button>
+</div>
+</div>
+</div>
+<script src="./app.js"></script>
+</body>
+</html>
+
+
+
+
+
+
+
+
